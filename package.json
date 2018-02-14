@@ -1,0 +1,9 @@
+{
+	"name": "battleship-server",
+	"version": "0.0.1",
+	"description": "server for battleship",
+	"dependencies": {
+		"express": "^4.16.2",
+		"socket.io": "^2.0.4"
+	}
+}
