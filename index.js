@@ -56,6 +56,7 @@ io.on('connection', function(socket){
 	});
 
 	socket.on('shotsfired', function(data){
+		console.log('shotsfired', 'called');
 		shotResults = [];
 		for(var i = 0; i < data.length; i+=2){
 			checkHit(socket.id, parseInt(data.charAt(i)), parseInt(data.charAt(i + 1)));
@@ -63,8 +64,10 @@ io.on('connection', function(socket){
 		if(Object.keys(currentShots).length == 2)
 			currentShots = {};
 		currentShots[socket.id]=shotResults;
-		if(Object.keys(currentShots).length == 1)
+		if(Object.keys(currentShots).length == 1){
+			console.log('fire', 'waiting');
 			socket.emit('fire', 'waiting');
+		}
 		else{
 			console.log(currentShots);
 			socket.broadcast.to(players[0]).emit('playerresult', serializeShots(currentShots[players[0]])+shotRemaining[players[0]]);
