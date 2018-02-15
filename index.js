@@ -6,7 +6,7 @@ var players = [];
 var ships = {};
 var currentShots = {};
 var shotResults = [];
-var shotRemaining = {}
+var enemyShotRemaining = {}
 
 app.get('/', function(req, res){
 	res.sendFile(__dirname + '/index.html');
@@ -21,7 +21,7 @@ io.on('connection', function(socket){
 	
 	if(players.length < 2){
 		players.push(socket.id);
-		shotRemaining[socket.id] = 6;
+		enemyShotRemaining[socket.id] = 6;
 		console.log(players);
 		if(players.length == 2)
 			io.sockets.emit('gamestarted', 'new');
@@ -69,13 +69,21 @@ io.on('connection', function(socket){
 			socket.emit('fire', 'waiting');
 		}
 		else{
-			console.log(currentShots);
-			console.log(socket.id);
-			console.log(players);
-			socket.broadcast.to(players[0]).emit('playerresult', serializeShots(currentShots[players[0]])+shotRemaining[players[0]]);
-			socket.broadcast.to(players[0]).emit('enemyresult', serializeShots(currentShots[players[1]]));
-			socket.broadcast.to(players[1]).emit('playerresult', serializeShots(currentShots[players[0]])+shotRemaining[players[1]]);
-			socket.broadcast.to(players[1]).emit('enemyresult', serializeShots(currentShots[players[1]]));
+			console.log(serializeShots(currentShots[players[0]])+enemyShotRemaining[players[0]]);
+			console.log(serializeShots(currentShots[players[1]]));
+			var player, enemy;
+			if(socket.id == players[0]){
+				player = 0;
+				enemy = 1;
+			}
+			else{
+				player = 1;
+				enemy = 0;
+			}
+			socket.broadcast.emit('playerresult', serializeShots(currentShots[players[enemy]])+enemyShotRemaining[socket.id]);
+			socket.broadcast.emit('enemyresult', serializeShots(currentShots[socket.id]));
+			socket.emit('playerresult', serializeShots(currentShots[socket.id])+enemyShotRemaining[players[enemy]]);
+			socket.emit('enemyresult', serializeShots(currentShots[players[enemy]]));
 		}
 	});
 });
@@ -101,9 +109,9 @@ var checkSunk = function(id, ship){
 			grid[2] = 2;
 			shotResults.push([grid[0], grid[1], 2]);
 		})
-		shotRemaining[id]--;
+		enemyShotRemaining[id]--;
 		if(ship.length == 5)
-			shotRemaining[id]--;
+			enemyShotRemaining[id]--;
 	}
 }
 
