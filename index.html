@@ -1,0 +1,9 @@
+<script src="/socket.io/socket.io.js"></script>
+<script>
+	var socket = io();
+	socket.emit('shiparranged', '0001020304101112132021223031324041');
+	socket.on('arrange', function(msg){
+		if(msg == 'done')
+			socket.emit('shotsfired', '000102030455');
+	});
+</script>
