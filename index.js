@@ -70,6 +70,8 @@ io.on('connection', function(socket){
 		}
 		else{
 			console.log(currentShots);
+			console.log(socket.id);
+			console.log(players);
 			socket.broadcast.to(players[0]).emit('playerresult', serializeShots(currentShots[players[0]])+shotRemaining[players[0]]);
 			socket.broadcast.to(players[0]).emit('enemyresult', serializeShots(currentShots[players[1]]));
 			socket.broadcast.to(players[1]).emit('playerresult', serializeShots(currentShots[players[0]])+shotRemaining[players[1]]);
