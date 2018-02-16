@@ -6,28 +6,50 @@ var players = [];
 var ships = {};
 var currentShots = {};
 var shotResults = [];
-var enemyShotRemaining = {}
+var shotRemaining = {}
 
 app.get('/', function(req, res){
 	res.sendFile(__dirname + '/index.html');
 });
 
-io.on('connection', function(socket){
-	console.log('a user connected');
-	
-	socket.on('disconnect', function(){
-		console.log('user disconnected');
-	});
-	
+var reset = function(){
+	ships = {};
+	currentShots = {};
+	shotResults = [];
+	shotRemaining = {};
+}
+
+var playerJoin = function(socket){
 	if(players.length < 2){
 		players.push(socket.id);
-		enemyShotRemaining[socket.id] = 6;
+		shotRemaining[socket.id] = 6;
 		console.log(players);
 		if(players.length == 2)
 			io.sockets.emit('gamestarted', 'new');
+		else
+			socket.emit('gamestarted', 'waiting');
 	}
 	else
 		socket.emit('gameover', 'roomfull');
+}
+
+io.on('connection', function(socket){
+	console.log('a user connected');
+
+	socket.on('disconnect', function(){
+		console.log('user disconnected');
+		var index = players.indexOf(socket.id);
+		if(index != -1){
+			players.splice(index, 1);
+			reset();
+			if(players.length == 1){
+				shotRemaining[players[0]] = 6;
+				socket.broadcast.emit('gamestarted', 'waiting');
+			}
+		}
+	});
+	
+	playerJoin(socket);
 
 	socket.on('shiparranged', function(data){
 		console.log(data);
@@ -58,8 +80,17 @@ io.on('connection', function(socket){
 	socket.on('shotsfired', function(data){
 		console.log('shotsfired', 'called');
 		shotResults = [];
+		var player, enemy;
+		if(socket.id == players[0]){
+			player = 0;
+			enemy = 1;
+		}
+		else{
+			player = 1;
+			enemy = 0;
+		}
 		for(var i = 0; i < data.length; i+=2){
-			checkHit(socket.id, parseInt(data.charAt(i)), parseInt(data.charAt(i + 1)));
+			checkHit(players[enemy], parseInt(data.charAt(i)), parseInt(data.charAt(i + 1)));
 		}
 		if(Object.keys(currentShots).length == 2)
 			currentShots = {};
@@ -69,22 +100,32 @@ io.on('connection', function(socket){
 			socket.emit('fire', 'waiting');
 		}
 		else{
-			console.log(serializeShots(currentShots[players[0]])+enemyShotRemaining[players[0]]);
+			console.log(serializeShots(currentShots[players[0]])+shotRemaining[players[0]]);
 			console.log(serializeShots(currentShots[players[1]]));
-			var player, enemy;
-			if(socket.id == players[0]){
-				player = 0;
-				enemy = 1;
-			}
-			else{
-				player = 1;
-				enemy = 0;
-			}
-			socket.broadcast.emit('playerresult', serializeShots(currentShots[players[enemy]])+enemyShotRemaining[socket.id]);
+
+			socket.broadcast.emit('playerresult', serializeShots(currentShots[players[enemy]])+shotRemaining[players[enemy]]);
 			socket.broadcast.emit('enemyresult', serializeShots(currentShots[socket.id]));
-			socket.emit('playerresult', serializeShots(currentShots[socket.id])+enemyShotRemaining[players[enemy]]);
+			socket.emit('playerresult', serializeShots(currentShots[socket.id])+shotRemaining[socket.id]);
 			socket.emit('enemyresult', serializeShots(currentShots[players[enemy]]));
+			if(shotRemaining[socket.id] == 0 && shotRemaining[players[enemy]] == 0){
+				socket.emit('gameresult', 'tie');
+				socket.broadcast.emit('gameresult', 'tie');
+			} else if(shotRemaining[socket.id] == 0){
+				socket.emit('gameresult', 'lose');
+				socket.broadcast.emit('gameresult', 'win');
+			} else if(shotRemaining[players[enemy]] == 0){
+				socket.emit('gameresult', 'win');
+				socket.broadcast.emit('gameresult', 'lose');
+			}
 		}
+	});
+
+	socket.on('rematch', function(data){
+		if(players.length == 2){
+			players = [];
+			reset();
+		}
+		playerJoin(socket);
 	});
 });
 
@@ -109,9 +150,9 @@ var checkSunk = function(id, ship){
 			grid[2] = 2;
 			shotResults.push([grid[0], grid[1], 2]);
 		})
-		enemyShotRemaining[id]--;
+		shotRemaining[id]--;
 		if(ship.length == 5)
-			enemyShotRemaining[id]--;
+			shotRemaining[id]--;
 	}
 }
 
